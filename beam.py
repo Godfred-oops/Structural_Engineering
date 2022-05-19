@@ -83,17 +83,17 @@ for l in range(loading_num):
         x_cord_distributed_1=float(input("Specify the x_coordinate for the distributed load " + 
                                   str(l) + " (P2): " ))
         Distributed_2_list.append(Distributed_2)
-        Distributed_2_x_cord.append(x_cord_distributed_1)
+        Distributed_1_x_cord.append(x_cord_distributed_1)
         
 Distributed_list = Distributed_1_list + Distributed_2_list
-Distributed_x_cord = Distributed_1_x_cord + Distributed_2_x_cord
+#Distributed_x_cord = Distributed_1_x_cord + Distributed_2_x_cord
 
 
 #storing the input values in a form of matrix
 from itertools import zip_longest
 
 a = zip_longest(Point_list, angle_list, Point_x_cord, 
-                         Distributed_list, Distributed_x_cord,
+                         Distributed_list, Distributed_1_x_cord,
                          support_x_position_list, 
                          node_x_list,  
                          moment_value_list, moment_x_position_list, 
@@ -111,7 +111,7 @@ for x in t:
 
 n = len(force_matrix)/e
 forces_matrix = np.array(force_matrix).reshape(int(n),e)
-print(forces_matrix)
+print(forces_matrix, "\n")
 
 
 #forces and moment calculations 
@@ -166,10 +166,11 @@ if support_type_list == ['fixed']:
     horizontal_force = sum(horizontal_list)
     vertical_force_B = 0.
     final_vector = np.array([moment, vertical_1, horizontal_force, vertical_force_B])
+    print('The reaction at node ', int(support_x_position_list[0])  ,"is ",  round(vertical_1,2) , "KN  \n")
+    print('The moment at node ', int(support_x_position_list[0]) , "is ",  round(moment,2) , "KNm  \n")
     print(final_vector)
 
 elif [element == 'pin' and 'roller' for element in support_type_list]:
-    p = 0
     vertical_force_list = []
     sum_vertical = []
     sum_horizontal = []
@@ -208,7 +209,7 @@ elif [element == 'pin' and 'roller' for element in support_type_list]:
         sum_of_vertical_forces = -forces_matrix[:,0][p] * np.sin(np.radians(forces_matrix[:,1][p]))
         
         horizontal_force_A = -forces_matrix[:,0][p] * np.cos(np.radians(forces_matrix[:,1][p]))
-        p = p + 1
+        
         
         vertical_force_list.append(moment1)
         sum_vertical.append(sum_of_vertical_forces)
@@ -221,6 +222,13 @@ elif [element == 'pin' and 'roller' for element in support_type_list]:
     horizontal_force = sum(sum_horizontal)
     
     final_vector = np.array([ vertical_force_A, horizontal_force,vertical_force_B])
+    
+    print('The reaction at node ', int(support_x_position_list[0])  ,"is ",  round(vertical_force_A,2) , "KN  \n")
+    print('The reaction at node ' , int(support_x_position_list[1]) ,"is ", round(vertical_force_B,2) , "KN  \n")
     print(final_vector)
-                                                                            
+    
+    reaction_coordinate_1 = [vertical_force_A, support_x_position_list[0]]
+    reaction_coordinate_2 = [vertical_force_B, support_x_position_list[1]]
+    
+
     
