@@ -5,6 +5,7 @@ Created on Thu Apr 14 16:12:32 2022
 @author: Quophi_ababio
 """
 import numpy as np 
+import matplotlib.pyplot as plt
 import math 
 
 span_num = int(input("Specify the number of span in the continuous beam: "))
@@ -62,9 +63,11 @@ for x in range(span_num):
                                       str(l) + " for span " + str(x) +": " ))
             if span_num == 2:
                 
-                if (loading_type == ["Point_load"]):
+                if (loading_num == 1 and loading_type == "Point_load"):
                     Distributed_1_list.append(0)
                     Distributed_1_x_cord.append(0)
+                elif loading_num == 2:
+                    pass
             
             elif span_num == 3:
                 if (loading_num == 1 and loading_type == "Point_load"):
@@ -191,6 +194,9 @@ if span_num == 1:
             
             [m1,m2] = np.matmul(np.linalg.inv(moments_matrix), y_0_component)
             
+            
+            moments_list = [m1,m2]
+            
         elif [i == "fixed" or "pin" or "roller" for i in support_type_list]:
             if overhang_check == 'Yes':
                 if overhang_loadings == 'Point_load':
@@ -222,6 +228,127 @@ if span_num == 1:
         
         
             m1 = (equation1_0_y - (forces_matrix[0][5]*m2)/forces_matrix[0][6])/(2*forces_matrix[0][5])
+            
+            moments_list = [m1,m2]
+            
+        #Reactions calculations 
+            
+        Reaction_B =  (1/forces_matrix[0][5]) * ((-forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1]))*forces_matrix[0][2])+ 
+                                                 (-forces_matrix[0][3]*forces_matrix[0][4]*0.5*forces_matrix[0][4]) + m1 - m2)
+        Reaction_A = -forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1])) + (-forces_matrix[0][3]*forces_matrix[0][4]) - Reaction_B
+                
+        Reaction_C = 0
+        
+        Reactions_list = [Reaction_A, Reaction_B]
+        
+        if overhang_check == 'Yes':
+            if overhang_loadings == 'Point_load':
+                Reaction_C = -overhang_load 
+            elif overhang_loadings == 'Distributed':
+                Reaction_C = -overhang_udl* overhang_udl_length
+            elif overhang_loadings == 'combined':
+                
+                if overhang_load_list !=[] or overhang_moment_list != [] or overhang_udl_list != []:
+                    point_load = 0
+                    for t in range(len(overhang_load_list)):
+                        if t % 2 == 0:
+                            point_load = point_load + overhang_load_list[t]
+                    point_udl = 0
+                    for p in range(len(overhang_udl_list)):
+                        if  p % 2 == 0:
+                            point_udl = point_udl + ( overhang_udl_list[p]* (overhang_udl_list[p+1]))
+                else:
+                    point_load = 0
+                    point_udl = 0
+                Reaction_C = -point_load + -point_udl 
+            Reactions_list = [Reaction_A, Reaction_B, Reaction_C]
+            
+        #Shear forces diagram for 1-span 
+        if forces_matrix[0][0] == 0:
+            if overhang_check == "Yes":
+                if overhang_loadings == 'Point_load':
+                    plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][4],Reaction_B+Reaction_C,0,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_length)
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                elif overhang_loadings == 'Distributed':
+                    plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][4],Reaction_B+Reaction_C,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_udl_length)
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                    plot_length_list = np.delete(plot_length_list,[len(plot_length_list)-1])
+            else:
+                plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][4],Reaction_B+Reaction_C]
+                plot_length_list = np.repeat(support_x_position_list, 2)
+        elif forces_matrix[0][3] == 0:
+            if overhang_check == "Yes":
+                if overhang_loadings == 'Point_load':
+                    plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B+Reaction_C,0,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_length)
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                elif overhang_loadings == 'Distributed':
+                    plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B+Reaction_C,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_udl_length)
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                    plot_length_list = np.delete(plot_length_list,[len(plot_length_list)-1])
+                elif overhang_loadings == 'moment':
+                    plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B+Reaction_C]
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)    
+            else:
+                plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B+Reaction_C]
+                support_x_position_list.insert(1, forces_matrix[0][2])
+                plot_length_list = np.repeat(support_x_position_list, 2)
+                
+        else:
+            if overhang_check == "Yes":
+                if overhang_loadings == 'Point_load':
+                    plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B+Reaction_C,0,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_length)
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                elif overhang_loadings == 'Distributed':
+                    plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B+Reaction_C,-Reaction_C]
+                    support_x_position_list.append(support_x_position_list[1] + overhang_udl_length)
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+                    plot_length_list = np.delete(plot_length_list,[len(plot_length_list)-1])
+                elif overhang_loadings == 'moment':
+                    plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B+Reaction_C]
+                    support_x_position_list.insert(1, forces_matrix[0][2])
+                    plot_length_list = np.repeat(support_x_position_list, 2)
+            else:
+                plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B+Reaction_C]
+                support_x_position_list.insert(1, forces_matrix[0][2])
+                plot_length_list = np.repeat(support_x_position_list, 2)
+        
+
+        p = 0
+        e = [p]
+
+        for i in range(len(plot_reaction_list)):
+            p = p + plot_reaction_list[i]
+            e.append(p)
+
+        print(e)
+        plt.plot(plot_length_list,e)
+        plt.title('SHEAR FORCE DIAGRAM')
+        plt.xlabel('length')
+        plt.ylabel('Shear force Values')
+        if overhang_check == 'Yes':
+            if overhang_loadings == 'Point_load':
+                plt.plot([0,plot_length_list[-1]], [0,0])
+            elif overhang_loadings == 'Distributed':
+                plt.plot([0,plot_length_list[-1]], [0,0])
+            elif overhang_loadings == 'moment':
+                plt.plot([0,plot_length_list[-1]], [0,0])
+        else:
+            plt.plot([0,plot_length_list[-1]], [0,0])
+
+        for a,d in zip(plot_length_list,e):
+            plt.annotate(np.round(d,2), (a,d), horizontalalignment = 'left',
+                             verticalalignment = 'top', fontsize = 9)
+    
             
             
 if span_num == 2:
@@ -264,8 +391,10 @@ if span_num == 2:
                 m3 = load_moment + udl_moment + moment_moment
         else:
             m3 = 0
-        m2 = (-6*((-span_1_moment_list[0]/(forces_matrix[0][5]*forces_matrix[0][6]))+ (-span_moment_list[1]/(forces_matrix[1][5]*forces_matrix[1][6])))+(-m3*forces_matrix[1][5]/(forces_matrix[1][5])))/(
+        m2 = (-6*((-span_1_moment_list[0]/(forces_matrix[0][5]*forces_matrix[0][6]))+ (-span_moment_list[1]/(forces_matrix[1][5]*forces_matrix[1][6])))+(-m3*forces_matrix[1][5]/(forces_matrix[1][6])))/(
             2*((forces_matrix[0][5]/forces_matrix[0][6]) + (forces_matrix[1][5]/forces_matrix[1][6])))
+
+        moments_list = [m1,m2,-m2,m3]
     
     else:
         if overhang_check == 'Yes':
@@ -308,6 +437,161 @@ if span_num == 2:
         y_component = np.array([equation1_y, equation2_y])
         
         [m1,m2] = np.matmul(np.linalg.inv(moment_matrix), y_component)
+        
+        
+        moments_list = [m1,m2,-m2,m3]
+    
+    #Reactions calculations
+    Reaction_B =  (1/forces_matrix[0][5]) * ((-forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1]))*forces_matrix[0][2])+ 
+                                             (-forces_matrix[0][3]*forces_matrix[0][4]*0.5*forces_matrix[0][4]) + m1 - m2)
+    Reaction_A = -forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1])) + (-forces_matrix[0][3]*forces_matrix[0][4]) - Reaction_B
+            
+    Reactions_list = [Reaction_A, Reaction_B]
+    
+    Reaction_B_1 =  (1/forces_matrix[1][5]) * ((-forces_matrix[1][0]*np.sin(np.radians(forces_matrix[1][1]))*forces_matrix[1][2])+ 
+                                             (-forces_matrix[1][3]*forces_matrix[1][4]*0.5*forces_matrix[1][4]) + m2 - m3)
+    Reaction_A_1 = -forces_matrix[1][0]*np.sin(np.radians(forces_matrix[1][1])) + (-forces_matrix[1][3]*forces_matrix[1][4]) - Reaction_B_1
+            
+    Reaction_C = 0
+    
+    Reactions_list_1 = [Reaction_A_1, Reaction_B_1]
+    
+    if overhang_check == 'Yes':
+        if overhang_loadings == 'Point_load':
+            Reaction_C = -overhang_load 
+        elif overhang_loadings == 'Distributed':
+            Reaction_C = -overhang_udl* overhang_udl_length
+        elif overhang_loadings == 'combined':
+            
+            if overhang_load_list !=[] or overhang_moment_list != [] or overhang_udl_list != []:
+                point_load = 0
+                for t in range(len(overhang_load_list)):
+                    if t % 2 == 0:
+                        point_load = point_load + overhang_load_list[t]
+                point_udl = 0
+                for p in range(len(overhang_udl_list)):
+                    if  p % 2 == 0:
+                        point_udl = point_udl + ( overhang_udl_list[p]* (overhang_udl_list[p+1]))
+            else:
+                point_load = 0
+                point_udl = 0
+            Reaction_C = -point_load + -point_udl 
+        Reactions_list_1 = [Reaction_A_1, Reaction_B_1, Reaction_C]
+    
+    #Shear forces diagram for 2-spans 
+    # for first span
+    support_x_position_list_1 = support_x_position_list[0:2]
+    support_x_position_list_2 = support_x_position_list[2:4]
+    if forces_matrix[0][0] == 0:
+         plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][4],Reaction_B]
+         plot_length_list = np.repeat(support_x_position_list_1, 2)
+    elif forces_matrix[0][3] == 0:
+        plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B]
+        support_x_position_list_1.insert(1, forces_matrix[0][2])
+        plot_length_list = np.repeat(support_x_position_list_1, 2)        
+    else:
+         plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B]
+         support_x_position_list_1.insert(1, forces_matrix[0][2])
+         plot_length_list = np.repeat(support_x_position_list_1, 2)
+         
+    # for second span 
+    if forces_matrix[1][0] == 0:
+        if overhang_check == "Yes":
+            if overhang_loadings == 'Point_load':
+                plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][4],Reaction_B_1+Reaction_C,0,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_length)
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+            elif overhang_loadings == 'Distributed':
+                plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][4],Reaction_B_1+Reaction_C,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_udl_length)
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+                plot_length_list_1 = np.delete(plot_length_list_1,[len(plot_length_list_1)-1])
+        else:
+            plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][4],Reaction_B_1+Reaction_C]
+            plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+    elif forces_matrix[1][3] == 0:
+        if overhang_check == "Yes":
+            if overhang_loadings == 'Point_load':
+                plot_reaction_list_1 = [Reaction_A_1,0,forces_matrix[1][0],0,Reaction_B_1+Reaction_C,0,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_length)
+                support_x_position_list_2.insert(1, forces_matrix[1][2])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+            elif overhang_loadings == 'Distributed':
+                plot_reaction_list_1 = [Reaction_A_1,0,forces_matrix[1][0],0,Reaction_B_1+Reaction_C,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_udl_length)
+                support_x_position_list_2.insert(1, forces_matrix[1][2])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+                plot_length_list_1 = np.delete(plot_length_list_1,[len(plot_length_list_1)-1])
+            elif overhang_loadings == 'moment':
+                plot_reaction_list_1 = [Reaction_A_1,0,forces_matrix[1][0],0,Reaction_B_1+Reaction_C]
+                support_x_position_list_2.insert(1, forces_matrix[1][2])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)    
+        else:
+            plot_reaction_list_1 = [Reaction_A_1,0,forces_matrix[1][0],0,Reaction_B_1+Reaction_C]
+            support_x_position_list_2.insert(1, forces_matrix[1][2])
+            plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+            
+    else:
+        if overhang_check == "Yes":
+            if overhang_loadings == 'Point_load':
+                plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][2],forces_matrix[1][0],forces_matrix[1][3]*(forces_matrix[1][5]-forces_matrix[1][2]),Reaction_B_1+Reaction_C,0,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_length)
+                support_x_position_list_2.insert(1, forces_matrix[1][2] + support_x_position_list[1])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+            elif overhang_loadings == 'Distributed':
+                plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][2],forces_matrix[1][0],forces_matrix[1][3]*(forces_matrix[1][5]-forces_matrix[1][2]),Reaction_B_1+Reaction_C,-Reaction_C]
+                support_x_position_list_2.append(support_x_position_list_2[1] + overhang_udl_length)
+                support_x_position_list_2.insert(1, forces_matrix[1][2] + support_x_position_list[1])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+                plot_length_list_1 = np.delete(plot_length_list_1,[len(plot_length_list_1)-1])
+            elif overhang_loadings == 'moment':
+                plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][2],forces_matrix[1][0],forces_matrix[1][3]*(forces_matrix[1][5]-forces_matrix[1][2]),Reaction_B_1+Reaction_C]
+                support_x_position_list_2.insert(1, forces_matrix[1][2] + support_x_position_list[1])
+                plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+        else:
+            plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][2],forces_matrix[1][0],forces_matrix[1][3]*(forces_matrix[1][5]-forces_matrix[1][2]),Reaction_B_1+Reaction_C]
+            support_x_position_list_2.insert(1, forces_matrix[1][2] + support_x_position_list[1])
+            plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+    
+
+    p = 0
+    e = [p]
+
+    for i in range(len(plot_reaction_list)):
+        p = p + plot_reaction_list[i]
+        e.append(p)
+    
+    p_1 = 0
+    e_1 = [p_1]
+
+    for i in range(len(plot_reaction_list_1)):
+        p_1 = p_1 + plot_reaction_list_1[i]
+        e_1.append(p_1)
+    
+    plot_y = e + e_1
+    plot_x = np.concatenate((plot_length_list , plot_length_list_1))
+
+    print(plot_y)
+    plt.plot(plot_x,plot_y)
+    plt.title('SHEAR FORCE DIAGRAM')
+    plt.xlabel('length')
+    plt.ylabel('Shear force Values')
+    if overhang_check == 'Yes':
+        if overhang_loadings == 'Point_load':
+            plt.plot([0,plot_length_list_1[-1]], [0,0])
+        elif overhang_loadings == 'Distributed':
+            plt.plot([0,plot_length_list_1[-1]], [0,0])
+        elif overhang_loadings == 'moment':
+            plt.plot([0,plot_length_list_1[-1]], [0,0])
+    else:
+        plt.plot([0,support_x_position_list[-1]], [0,0])
+
+    for a,d in zip(plot_x,plot_y):
+        plt.annotate(np.round(d,2), (a,d), horizontalalignment = 'left',
+                         verticalalignment = 'top', fontsize = 9)
+        
+    
+    
 
 if span_num == 3:
      span_3_moment_list = []
@@ -364,7 +648,199 @@ if span_num == 3:
          y_3_component = np.array([equation1_3_y, equation2_3_y])
          
          [m2,m3] = np.matmul(np.linalg.inv(moment_3_matrix), y_3_component)
+         
+         moments_list = [m1,m2,-m2,m3,-m3,m4]
+     
     
+    #Reactions calculations
+     Reaction_B =  (1/forces_matrix[0][5]) * ((-forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1]))*forces_matrix[0][2])+ 
+                                              (-forces_matrix[0][3]*forces_matrix[0][4]*0.5*forces_matrix[0][4]) + m1 - m2)
+     Reaction_A = -forces_matrix[0][0]*np.sin(np.radians(forces_matrix[0][1])) + (-forces_matrix[0][3]*forces_matrix[0][4]) - Reaction_B
+             
+     Reactions_list = [Reaction_A, Reaction_B]
+     
+     Reaction_B_1 =  (1/forces_matrix[1][5]) * ((-forces_matrix[1][0]*np.sin(np.radians(forces_matrix[1][1]))*forces_matrix[1][2])+ 
+                                              (-forces_matrix[1][3]*forces_matrix[1][4]*0.5*forces_matrix[1][4]) + m2 - m3)
+     Reaction_A_1 = -forces_matrix[1][0]*np.sin(np.radians(forces_matrix[1][1])) + (-forces_matrix[1][3]*forces_matrix[1][4]) - Reaction_B_1
+             
+     Reactions_list_1 = [Reaction_A_1, Reaction_B_1]
+     
+     Reaction_B_2 =  (1/forces_matrix[2][5]) * ((-forces_matrix[2][0]*np.sin(np.radians(forces_matrix[2][1]))*forces_matrix[2][2])+ 
+                                              (-forces_matrix[2][3]*forces_matrix[2][4]*0.5*forces_matrix[2][4]) + m3 - m4)
+     Reaction_A_2 = -forces_matrix[2][0]*np.sin(np.radians(forces_matrix[2][1])) + (-forces_matrix[2][3]*forces_matrix[2][4]) - Reaction_B_2
+             
+     Reaction_C = 0
+        
+     Reactions_list_1 = [Reaction_A_2, Reaction_B_2]
+     
+     if overhang_check == 'Yes':
+         if overhang_loadings == 'Point_load':
+             Reaction_C = -overhang_load 
+         elif overhang_loadings == 'Distributed':
+             Reaction_C = -overhang_udl* overhang_udl_length
+         elif overhang_loadings == 'combined':
+             
+             if overhang_load_list !=[] or overhang_moment_list != [] or overhang_udl_list != []:
+                 point_load = 0
+                 for t in range(len(overhang_load_list)):
+                     if t % 2 == 0:
+                         point_load = point_load + overhang_load_list[t]
+                 point_udl = 0
+                 for p in range(len(overhang_udl_list)):
+                     if  p % 2 == 0:
+                         point_udl = point_udl + ( overhang_udl_list[p]* (overhang_udl_list[p+1]))
+             else:
+                 point_load = 0
+                 point_udl = 0
+             Reaction_C = -point_load + -point_udl 
+         Reactions_list_1 = [Reaction_A_2, Reaction_B_2, Reaction_C]
+         
+     support_x_position_list_1 = support_x_position_list[0:2]
+     support_x_position_list_2 = support_x_position_list[2:4]
+     support_x_position_list_3 = support_x_position_list[4:6]
+     
+     # first span
+     if forces_matrix[0][0] == 0:
+          plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][4],Reaction_B]
+          plot_length_list = np.repeat(support_x_position_list_1, 2)
+     elif forces_matrix[0][3] == 0:
+         plot_reaction_list = [Reaction_A,0,forces_matrix[0][0],0,Reaction_B]
+         support_x_position_list_1.insert(1, forces_matrix[0][2])
+         plot_length_list = np.repeat(support_x_position_list_1, 2)        
+     else:
+          plot_reaction_list = [Reaction_A,forces_matrix[0][3]*forces_matrix[0][2],forces_matrix[0][0],forces_matrix[0][3]*(forces_matrix[0][5]-forces_matrix[0][2]),Reaction_B]
+          support_x_position_list_1.insert(1, forces_matrix[0][2])
+          plot_length_list = np.repeat(support_x_position_list_1, 2)
+      # second span     
+     if forces_matrix[1][0] == 0:
+          plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][4],Reaction_B_1]
+          plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+     elif forces_matrix[1][3] == 0:
+         plot_reaction_list_1 = [Reaction_A_1,0,forces_matrix[1][0],0,Reaction_B_1]
+         support_x_position_list_2.insert(1, forces_matrix[1][2])
+         plot_length_list_1 = np.repeat(support_x_position_list_2, 2)        
+     else:
+          plot_reaction_list_1 = [Reaction_A_1,forces_matrix[1][3]*forces_matrix[1][2],forces_matrix[1][0],forces_matrix[1][3]*(forces_matrix[1][5]-forces_matrix[1][2]),Reaction_B_1]
+          support_x_position_list_2.insert(1, forces_matrix[1][2] + support_x_position_list[1])
+          plot_length_list_1 = np.repeat(support_x_position_list_2, 2)
+          
+     if forces_matrix[2][0] == 0:
+         if overhang_check == "Yes":
+             if overhang_loadings == 'Point_load':
+                 plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][4],Reaction_B_2+Reaction_C,0,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_length)
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+             elif overhang_loadings == 'Distributed':
+                 plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][4],Reaction_B_2+Reaction_C,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_udl_length)
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+                 plot_length_list_2 = np.delete(plot_length_list_2,[len(plot_length_list_2)-1])
+         else:
+             plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][4],Reaction_B_2+Reaction_C]
+             plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+     elif forces_matrix[2][3] == 0:
+         if overhang_check == "Yes":
+             if overhang_loadings == 'Point_load':
+                 plot_reaction_list_2 = [Reaction_A_2,0,forces_matrix[2][0],0,Reaction_B_2+Reaction_C,0,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_length)
+                 support_x_position_list_3.insert(1, forces_matrix[2][2])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+             elif overhang_loadings == 'Distributed':
+                 plot_reaction_list_2 = [Reaction_A_2,0,forces_matrix[2][0],0,Reaction_B_2+Reaction_C,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_udl_length)
+                 support_x_position_list_3.insert(1, forces_matrix[2][2])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+                 plot_length_list_2 = np.delete(plot_length_list_2,[len(plot_length_list_2)-1])
+             elif overhang_loadings == 'moment':
+                 plot_reaction_list_2 = [Reaction_A_2,0,forces_matrix[2][0],0,Reaction_B_2+Reaction_C]
+                 support_x_position_list_3.insert(1, forces_matrix[2][2])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)    
+         else:
+             plot_reaction_list_2 = [Reaction_A_2,0,forces_matrix[2][0],0,Reaction_B_2+Reaction_C]
+             support_x_position_list_3.insert(1, forces_matrix[2][2])
+             plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+             
+     else:
+         if overhang_check == "Yes":
+             if overhang_loadings == 'Point_load':
+                 plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][2],forces_matrix[2][0],forces_matrix[2][3]*(forces_matrix[2][5]-forces_matrix[2][2]),Reaction_B_2+Reaction_C,0,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_length)
+                 support_x_position_list_3.insert(1, forces_matrix[2][2] + support_x_position_list[3])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+             elif overhang_loadings == 'Distributed':
+                 plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][2],forces_matrix[2][0],forces_matrix[2][3]*(forces_matrix[2][5]-forces_matrix[2][2]),Reaction_B_2+Reaction_C,-Reaction_C]
+                 support_x_position_list_3.append(support_x_position_list_3[1] + overhang_udl_length)
+                 support_x_position_list_3.insert(1, forces_matrix[2][2] + support_x_position_list[3])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+                 plot_length_list_2 = np.delete(plot_length_list_2,[len(plot_length_list_2)-1])
+             elif overhang_loadings == 'moment':
+                 plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][2],forces_matrix[2][0],forces_matrix[2][3]*(forces_matrix[2][5]-forces_matrix[2][2]),Reaction_B_2+Reaction_C]
+                 support_x_position_list_3.insert(1, forces_matrix[2][2] + support_x_position_list[3])
+                 plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+         else:
+             plot_reaction_list_2 = [Reaction_A_2,forces_matrix[2][3]*forces_matrix[2][2],forces_matrix[2][0],forces_matrix[2][3]*(forces_matrix[2][5]-forces_matrix[2][2]),Reaction_B_2+Reaction_C]
+             support_x_position_list_3.insert(1, forces_matrix[2][2] + support_x_position_list[3])
+             plot_length_list_2 = np.repeat(support_x_position_list_3, 2)
+     
+
+     p = 0
+     e = [p]
+
+     for i in range(len(plot_reaction_list)):
+         p = p + plot_reaction_list[i]
+         e.append(p)
+     
+     p_1 = 0
+     e_1 = [p_1]
+
+     for i in range(len(plot_reaction_list_1)):
+         p_1 = p_1 + plot_reaction_list_1[i]
+         e_1.append(p_1)
+         
+     p_2 = 0
+     e_2 = [p_2]
+
+     for i in range(len(plot_reaction_list_2)):
+         p_2 = p_2 + plot_reaction_list_2[i]
+         e_2.append(p_2)
+     
+     plot_y = e + e_1 + e_2
+     plot_x = np.concatenate((plot_length_list , plot_length_list_1, plot_length_list_2))
+
+     print(plot_y)
+     plt.plot(plot_x,plot_y)
+     plt.title('SHEAR FORCE DIAGRAM')
+     plt.xlabel('length')
+     plt.ylabel('Shear force Values')
+     if overhang_check == 'Yes':
+         if overhang_loadings == 'Point_load':
+             plt.plot([0,plot_length_list_2[-1]], [0,0])
+         elif overhang_loadings == 'Distributed':
+             plt.plot([0,plot_length_list_2[-1]], [0,0])
+         elif overhang_loadings == 'moment':
+             plt.plot([0,plot_length_list_2[-1]], [0,0])
+     else:
+         plt.plot([0,support_x_position_list[-1]], [0,0])
+
+     for a,d in zip(plot_x,plot_y):
+         plt.annotate(np.round(d,2), (a,d), horizontalalignment = 'left',
+                          verticalalignment = 'top', fontsize = 9)
+     
+     
+     
+     
+     
+     
+         
+     
+    
+    
+    
+
+
+
+        
+        
         
         
          
